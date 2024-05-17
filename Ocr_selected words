@@ -1,0 +1,50 @@
+import cv2
+import pytesseract
+
+# Replace 'path/to/image.jpg' with the actual path to your image
+img = cv2.imread('path/to/image.jpg')
+
+# Convert to grayscale
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+# Apply thresholding (adjust threshold value if needed)
+thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)[1]
+
+# Text detection with Tesseract
+boxes = pytesseract.image_to_data(thresh, config='--psm 6')  # Use PSM 6 for single line text
+
+customer_coords = None
+name = None
+
+# Loop through detected text regions
+for i, box in enumerate(boxes.splitlines()[1:]):
+  x, y, w, h, text = map(int, box.split('\t'))
+
+  # Check if detected text is "Customer" (case-insensitive)
+  if text.lower() == "customer":
+    customer_coords = (x, y)
+    break  # Exit loop after finding customer
+
+# Check if customer coordinates were found
+if customer_coords:
+  # Define a search area to the right of "Customer" (adjust width as needed)
+  search_width = 100  # Adjust this value based on the image
+  search_x = customer_coords[0] + w  # Start search from right edge of "Customer"
+  search_y = customer_coords[1]
+  search_h = h  # Assume similar height for next word
+
+  # Extract text within search area
+  search_region = thresh[search_y:search_y + search_h, search_x:search_x + search_width]
+  name = pytesseract.image_to_string(search_region, config='--psm 6')
+
+# Print results (handle case if customer not found)
+if name:
+  print(f"Customer text found at: ({customer_coords[0]}, {customer_coords[1]})")
+  print(f"Name extracted: {name.strip()}")  # Remove leading/trailing whitespaces
+else:
+  print("Customer text not found in image.")
+
+# Display the image (optional)
+# cv2.imshow('Image', img)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
